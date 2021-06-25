@@ -23,7 +23,7 @@ def getClass(cname):
     else:
         return 99
 
-xmlpath='c:/opencv/test/pos2/'
+xmlpath='c:/opencv/test/postest/'
 output_filename="C:/opencv/test/data2/train.tfrecord"
 # output_pbxt="C:/opencv/test/data2/train.pbtxt"
 
@@ -39,19 +39,12 @@ for xmlfile in glob.glob(xmlpath+"*.xml"):
     size=root.find('size')
     width=int(size.find('width').text)
     height=int(size.find('height').text)
-    rect=root.find('object/bndbox')
-    xmin=int(rect.find('xmin').text)
-    ymin=int(rect.find('ymin').text)
-    xmax=int(rect.find('xmax').text)
-    ymax=int(rect.find('ymax').text)
+    
     image_format=b'jpg'
-    classname=root.find('object/name').text
-    classlabel=getClass(classname)
+    
     filepath=root.find('path').text
     with tf.compat.v1.gfile.GFile(filepath, 'rb') as fid:
         encoded_jpg = fid.read()
-
-
 
     xmins = []
     xmaxs = []
@@ -59,14 +52,22 @@ for xmlfile in glob.glob(xmlpath+"*.xml"):
     ymaxs = []
     classes_text = []
     classes_label = []
-    xmins.append(xmin/width)
-    xmaxs.append(xmax/width)
-    ymins.append(ymin/height)
-    ymaxs.append(ymax/height)
-    classes_text.append(classname.encode('utf8'))
-    classes_label.append(classlabel)
 
-
+    for o in root.findall('object'):
+        rect=o.find('bndbox')
+        xmin=int(rect.find('xmin').text)
+        ymin=int(rect.find('ymin').text)
+        xmax=int(rect.find('xmax').text)
+        ymax=int(rect.find('ymax').text)
+        classname=o.find('name').text
+        classlabel=getClass(classname)
+        xmins.append(xmin/width)
+        xmaxs.append(xmax/width)
+        ymins.append(ymin/height)
+        ymaxs.append(ymax/height)
+        classes_text.append(classname.encode('utf8'))
+        classes_label.append(classlabel)
+    
     tf_example=tf.train.Example(
         features=tf.train.Features(feature={
             'image/height':dataset_util.int64_feature(height),
@@ -83,17 +84,19 @@ for xmlfile in glob.glob(xmlpath+"*.xml"):
             'image/object/class/label': dataset_util.int64_list_feature(classes_label),
         })
     )
-    pbtx+='item{\n'
-    # pbtx+='    id:'+str(id)+'\n'
-    pbtx+='    id:'+str(classes_label)+'\n'
+    # pbtx+='item{\n'
+    # # pbtx+='    id:'+str(id)+'\n'
+    # pbtx+='    id:'+str(classes_label)+'\n'
     
-    pbtx+='    name:\''+classname+'\'\n'
-    pbtx+='}'+'\r\n'
-    id=id+1
+    # pbtx+='    name:\''+classname+'\'\n'
+    # pbtx+='}'+'\r\n'
+    # id=id+1
     writer.write(tf_example.SerializeToString())
+    # print(tf_example)
 
 
 
-    print (filepath,filename,width,height,classname,classlabel,xmins,ymins,xmaxs,ymaxs,image_format,xmax/width)
+    # print (filepath,filename,width,height,classname,classlabel,xmins,ymins,xmaxs,ymaxs,image_format,xmax/width)
 
+print(pbtx)
 writer.close()
